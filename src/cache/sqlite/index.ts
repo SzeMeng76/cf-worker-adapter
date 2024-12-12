@@ -1,14 +1,16 @@
 import type { Database, Statement } from 'sqlite3';
+import sqlite3 from 'sqlite3';
 import type { Cache, CacheItem, CacheType, GetCacheInfo, PutCacheInfo } from '../types';
 import type { SQLCacheRow } from '../utils';
-import sqlite3 from 'sqlite3';
-import { cacheItemToType, calculateExpiration, createSQLCacheStmt, decodeCacheItem, encodeCacheItem } from '../utils';
+import { cacheItemToType, calculateExpiration, createSQLCacheStmt, decodeCacheItem, encodeCacheItem, isExpired } from '../utils';
 
 export class SQLiteCache implements Cache {
     private db?: Database;
     private readonly tableName: string;
     private getStatement?: Statement;
     private upsertStatement?: Statement;
+    private insertStatement?: Statement;
+    private updateStatement?: Statement;
     private deleteStatement?: Statement;
     private listStatement?: Statement;
     private listNoLimitStatement?: Statement;
@@ -25,6 +27,8 @@ export class SQLiteCache implements Cache {
             this.db?.run(stmt.create);
             this.getStatement = this.db?.prepare(stmt.get);
             this.upsertStatement = this.db?.prepare(stmt.upsert);
+            this.insertStatement = this.db?.prepare(stmt.insert);
+            this.updateStatement = this.db?.prepare(stmt.update);
             this.deleteStatement = this.db?.prepare(stmt.delete);
             this.listStatement = this.db?.prepare(stmt.list);
             this.listNoLimitStatement = this.db?.prepare(stmt.listNoLimit);
@@ -47,39 +51,46 @@ export class SQLiteCache implements Cache {
             return null;
         }
 
-        const expiration = row.expiration;
-        if (expiration !== -1 && expiration < Date.now()) {
+        if (isExpired(row.expiration)) {
             await this.delete(key);
             return null;
         }
         return decodeCacheItem(row.value, info?.type || row.type as CacheType);
     }
 
-    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void> {
+    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<boolean> {
         const row = {
             key,
             value: await encodeCacheItem(value),
             type: cacheItemToType(value),
             expiration: calculateExpiration(info) ?? -1,
         };
-
-        await new Promise<void>((resolve, reject) => {
-            this.upsertStatement?.run(
-                row.key,
-                row.value,
-                row.type,
-                row.expiration,
-                row.value,
-                row.type,
-                row.expiration,
-                (err: Error | any) => {
-                    if (err) {
-                        reject(err);
+        const stmt = info?.condition === 'NX'
+            ? this.insertStatement
+            : info?.condition === 'XX'
+                ? this.updateStatement
+                : this.upsertStatement;
+        const args = info?.condition === 'NX'
+            ? [row.key, row.value, row.type, row.expiration]
+            : info?.condition === 'XX'
+                ? [row.value, row.type, row.expiration, row.key]
+                : [row.key, row.value, row.type, row.expiration, row.value, row.type, row.expiration];
+        if (['XX', 'NX'].includes(info?.condition)) {
+            // avoid expired data is still present.
+            await this.get(key);
+        }
+        return new Promise<boolean>((resolve, reject) => {
+            stmt?.run(args, (err: Error | any) => {
+                if (err) {
+                    if (info?.condition && ['NX', 'XX'].includes(info.condition)) {
+                        resolve(false);
                     } else {
-                        resolve();
+                        reject(err);
                     }
-                },
-            );
+                } else {
+                    resolve(true);
+                }
+            });
         });
     }
 

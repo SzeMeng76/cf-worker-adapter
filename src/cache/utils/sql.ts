@@ -7,16 +7,20 @@ export function createSQLCacheStmt(table: string): SQLCacheStmt {
             expiration INTEGER
         )`;
     const get = `SELECT * FROM ${table} WHERE key = ?`;
-    const upt = `INSERT INTO ${table} (key, value, type, expiration) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = ?, type = ?, expiration = ?`;
+    const upsert = `INSERT INTO ${table} (key, value, type, expiration) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = ?, type = ?, expiration = ?`;
+    const insert = `INSERT INTO ${table} (key, value, type, expiration) VALUES (?, ?, ?, ?)`;
+    const update = `UPDATE ${table} SET value = ?, type = ?, expiration = ? WHERE key = ?`;
     const del = `DELETE FROM ${table} WHERE key = ?`;
     const list = `SELECT key FROM ${table} WHERE key LIKE ? LIMIT ?`;
     const listNoLimit = `SELECT key FROM ${table} WHERE key LIKE ?`;
-    return { create, get, upsert: upt, delete: del, list, listNoLimit };
+    return { create, get, upsert, insert, update, delete: del, list, listNoLimit };
 }
 
 export interface SQLCacheStmt {
     create: string;
     get: string;
+    insert: string;
+    update: string;
     upsert: string;
     delete: string;
     list: string;

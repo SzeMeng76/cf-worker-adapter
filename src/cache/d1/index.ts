@@ -7,6 +7,8 @@ export class D1Cache implements Cache {
     private readonly store: D1Database;
     private readonly tableName: string;
     private getStatement?: D1PreparedStatement;
+    private insertStatement?: D1PreparedStatement;
+    private updateStatement?: D1PreparedStatement;
     private upsertStatement?: D1PreparedStatement;
     private deleteStatement?: D1PreparedStatement;
     private listStatement?: D1PreparedStatement;
@@ -20,6 +22,8 @@ export class D1Cache implements Cache {
         const stmt = createSQLCacheStmt(this.tableName);
         await this.store.exec(stmt.create);
         this.getStatement = this.store.prepare(stmt.get);
+        this.insertStatement = this.store.prepare(stmt.insert);
+        this.updateStatement = this.store.prepare(stmt.update);
         this.upsertStatement = this.store.prepare(stmt.upsert);
         this.deleteStatement = this.store.prepare(stmt.delete);
         this.listStatement = this.store.prepare(stmt.list);
@@ -38,14 +42,25 @@ export class D1Cache implements Cache {
         return decodeCacheItem(item.value, info?.type);
     }
 
-    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void> {
+    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<boolean | void> {
         const row: SQLCacheRow = {
             key,
             value: await encodeCacheItem(value),
             type: cacheItemToType(value),
             expiration: calculateExpiration(info) || -1,
         };
-        await this.upsertStatement.bind(row.key, row.value, row.type, row.expiration, row.value, row.type, row.expiration).run();
+        if (['XX', 'NX'].includes(info?.condition)) {
+            // avoid expired data is still present.
+            await this.get(key);
+        }
+        switch (info?.condition) {
+            case 'NX':
+                return this.insertStatement.bind(row.key, row.value, row.type, row.expiration).run().then(res => res.success).catch(() => false);
+            case 'XX':
+                return this.updateStatement.bind(row.value, row.type, row.expiration, row.key).run().then(res => res.success).catch(() => false);
+            default:
+                await this.upsertStatement.bind(row.key, row.value, row.type, row.expiration, row.value, row.type, row.expiration).run().then(res => res.success);
+        }
     }
 
     async delete(key: string): Promise<void> {

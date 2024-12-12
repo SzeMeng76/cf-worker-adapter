@@ -21,7 +21,15 @@ export class MemoryCache implements Cache {
         return decodeCacheItem(item.value, info?.type || item.info.type);
     }
 
-    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void> {
+    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void | boolean> {
+        if (['NX', 'XX'].includes(info?.condition)) {
+            this.get(key);
+        }
+        if (info?.condition === 'NX' && this.cache[key]) {
+            return Promise.resolve(false);
+        } else if (info?.condition === 'XX' && this.cache[key] === undefined) {
+            return Promise.resolve(false);
+        }
         this.cache[key] = {
             info: {
                 type: cacheItemToType(value),

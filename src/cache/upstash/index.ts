@@ -1,6 +1,6 @@
 import type { SetCommandOptions } from '@upstash/redis';
-import type { Cache, CacheItem, CacheStore, GetCacheInfo, PutCacheInfo } from '../types';
 import { Redis } from '@upstash/redis';
+import type { Cache, CacheItem, CacheStore, GetCacheInfo, PutCacheInfo } from '../types';
 import { cacheItemToType, calculateExpiration, decodeCacheItem, encodeCacheItem } from '../utils';
 
 export class UpStashRedis implements Cache {
@@ -26,7 +26,7 @@ export class UpStashRedis implements Cache {
         return decodeCacheItem(item.value, info?.type || item.info?.type);
     }
 
-    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void> {
+    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<boolean | void> {
         const cacheStore: CacheStore = {
             info: {
                 type: cacheItemToType(value),
@@ -38,7 +38,13 @@ export class UpStashRedis implements Cache {
         if (cacheStore.info.expiration) {
             options.exat = cacheStore.info.expiration as never;
         }
-        await this.redis.set<CacheStore>(key, cacheStore, options);
+
+        if (info?.condition === 'NX') {
+            options.nx = true as never;
+        } else if (info?.condition === 'XX') {
+            options.xx = true as never;
+        }
+        return this.redis.set<CacheStore>(key, cacheStore, options).then(res => ['NX', 'XX'].includes(info?.condition || '') ? res === 'OK' : undefined);
     }
 
     async list(prefix?: string, limit?: number): Promise<string[]> {

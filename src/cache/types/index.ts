@@ -15,6 +15,7 @@ export interface GetCacheInfo {
 export interface PutCacheInfo {
     expiration?: number; // Timestamp in units of seconds
     expirationTtl?: number; // Time to live in units of seconds
+    condition?: 'NX' | 'XX';
 }
 
 export interface CacheStore {
@@ -24,7 +25,7 @@ export interface CacheStore {
 
 export interface Cache {
     get: (key: string, info?: GetCacheInfo) => Promise<CacheItem | null>;
-    put: (key: string, value: CacheItem, info?: PutCacheInfo) => Promise<void>;
+    put: (key: string, value: CacheItem, info?: PutCacheInfo) => Promise<boolean | void>;
     delete: (key: string) => Promise<void>;
     list?: (prefix?: string, limit?: number) => Promise<string[]>;
 }

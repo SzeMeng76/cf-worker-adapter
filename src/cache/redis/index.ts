@@ -1,6 +1,6 @@
 import type { RedisOptions } from 'ioredis';
-import type { Cache, CacheItem, CacheStore, GetCacheInfo, PutCacheInfo } from '../types';
 import { Redis } from 'ioredis';
+import type { Cache, CacheItem, CacheStore, GetCacheInfo, PutCacheInfo } from '../types';
 import { cacheItemToType, calculateExpiration, decodeCacheItem, encodeCacheItem } from '../utils';
 
 export class RedisCache implements Cache {
@@ -30,7 +30,7 @@ export class RedisCache implements Cache {
         return decodeCacheItem(item.value, info?.type || item.info?.type);
     }
 
-    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<void> {
+    async put(key: string, value: CacheItem, info?: PutCacheInfo): Promise<boolean> {
         const cacheStore: CacheStore = {
             info: {
                 type: cacheItemToType(value),
@@ -38,12 +38,19 @@ export class RedisCache implements Cache {
             },
             value: await encodeCacheItem(value),
         };
+        const setArgs: (string | number)[] = [key, JSON.stringify(cacheStore)];
+
         if (cacheStore.info.expiration) {
             const milliseconds = (cacheStore.info.expiration - Date.now() / 1000) * 1000;
-            await this.redis.set(key, JSON.stringify(cacheStore), 'PX', milliseconds);
-        } else {
-            await this.redis.set(key, JSON.stringify(cacheStore));
+            setArgs.push('PX', milliseconds);
         }
+
+        if (info?.condition && ['NX', 'XX'].includes(info.condition)) {
+            setArgs.push(info.condition);
+        }
+        return this.redis.set(
+            ...setArgs as Parameters<Redis['set']>,
+        ).then(res => ['NX', 'XX'].includes(info?.condition || '') ? res === 'OK' : undefined);
     }
 
     async list(prefix?: string, limit?: number): Promise<string[]> {

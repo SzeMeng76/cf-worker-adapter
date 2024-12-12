@@ -1,8 +1,8 @@
 import * as path from 'node:path';
-import { defineConfig } from 'vite';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
-import { nodeExternals } from 'rollup-plugin-node-externals';
 import typescript from '@rollup/plugin-typescript';
+import { nodeExternals } from 'rollup-plugin-node-externals';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
     plugins: [
