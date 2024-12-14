@@ -1,11 +1,11 @@
 {
-    "name": "cf-worker-adapter",
+    "name": "cf-worker-adapters",
     "type": "module",
     "version": "1.4.0",
     "description": "This is a modified version of the original package. It adds new features.",
-    "author": "adolph",
+    "author": "SzeMeng76",
     "license": "MIT",
-    "repository": "git@github.com:adolphnov/cf-worker-adapter.git",
+    "repository": "git@github.com:SzeMeng76/cf-worker-adapters.git",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
