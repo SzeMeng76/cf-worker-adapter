@@ -1,4 +1,11 @@
-# cloudflare-worker-adapter
+# cf-worker-adapter
+
+This is a modified version of the [original package](https://github.com/tbxark/cloudflare-worker-adapter).
+
+## Modifications
+
+* Add nx xx parameter options
+
 
 This is a simple Cloudflare Workers adapter that allows this project to run independently without the need for Cloudflare Worker. Currently supported features include:
 

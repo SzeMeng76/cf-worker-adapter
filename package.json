@@ -1,10 +1,11 @@
 {
-    "name": "cloudflare-worker-adapter",
+    "name": "cf-worker-adapter",
     "type": "module",
     "version": "1.4.0",
-    "author": "tbxark <tbxark@outlook.com>",
+    "description": "This is a modified version of the original package. It adds new features.",
+    "author": "adolph",
     "license": "MIT",
-    "repository": "git@github.com:TBXark/cloudflare-worker-adapter.git",
+    "repository": "git@github.com:adolphnov/cf-worker-adapter.git",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
@@ -87,5 +88,10 @@
         "tsx": "^4.19.2",
         "typescript": "^5.7.2",
         "vite": "^6.0.3"
+    },
+    "originalPackage": {
+        "name": "cloudflare-worker-adapter",
+        "url": "https://github.com/tbxark/cloudflare-worker-adapter"
     }
+
 }
